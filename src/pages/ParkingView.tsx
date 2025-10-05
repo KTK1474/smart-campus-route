@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { ArrowLeft, Camera, MapPin, Clock, Car } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,44 +12,54 @@ import { Progress } from "@/components/ui/progress";
  */
 const ParkingView = () => {
   const navigate = useNavigate();
+  const [parkingData, setParkingData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const parkingLots = [
-    {
-      id: "A",
-      name: "Main Gate Parking",
-      total: 50,
-      occupied: 38,
-      cameras: 4,
-      lastUpdate: "2 min ago",
-    },
-    {
-      id: "B",
-      name: "Library Parking",
-      total: 80,
-      occupied: 56,
-      cameras: 6,
-      lastUpdate: "1 min ago",
-    },
-    {
-      id: "C",
-      name: "Sports Complex",
-      total: 40,
-      occupied: 12,
-      cameras: 3,
-      lastUpdate: "just now",
-    },
-    {
-      id: "D",
-      name: "Academic Block",
-      total: 60,
-      occupied: 54,
-      cameras: 5,
-      lastUpdate: "3 min ago",
-    },
-  ];
+  useEffect(() => {
+    loadParkingData();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadParkingData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadParkingData = async () => {
+    try {
+      const { api } = await import('@/lib/api-client');
+      const data = await api.getParkingStatus();
+      setParkingData(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading parking data:', error);
+      setLoading(false);
+    }
+  };
+
+  if (loading || !parkingData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading parking data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const parkingLots = parkingData.lotStats || [];
 
   const calculateAvailability = (total: number, occupied: number) => {
-    return Math.round(((total - occupied) / total) * 100);
+    const available = total - occupied;
+    return Math.round((available / total) * 100);
+  };
+
+  const handleSimulate = async (action: string) => {
+    try {
+      const { api } = await import('@/lib/api-client');
+      await api.simulateParking(action);
+      await loadParkingData(); // Refresh data
+    } catch (error) {
+      console.error('Simulation error:', error);
+    }
   };
 
   return (
@@ -94,16 +105,18 @@ const ParkingView = () => {
 
         {/* Parking Lots Grid */}
         <div className="grid md:grid-cols-2 gap-6">
-          {parkingLots.map((lot) => {
-            const availability = calculateAvailability(lot.total, lot.occupied);
-            const available = lot.total - lot.occupied;
+          {parkingLots.map((lot: any) => {
+            const occupied = lot.occupied || 0;
+            const total = lot.total || 1;
+            const availability = calculateAvailability(total, occupied);
+            const available = total - occupied;
 
             return (
-              <Card key={lot.id} className="p-6 space-y-4 hover:shadow-card transition-shadow">
+              <Card key={lot.code} className="p-6 space-y-4 hover:shadow-card transition-shadow">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold text-foreground">Lot {lot.id}</h3>
+                      <h3 className="text-xl font-bold text-foreground">Lot {lot.code}</h3>
                       <Badge
                         variant={availability > 50 ? "default" : availability > 20 ? "secondary" : "destructive"}
                       >
@@ -131,11 +144,11 @@ const ParkingView = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-border">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Camera className="w-4 h-4" />
-                    <span>{lot.cameras} cameras active</span>
+                    <span>Real-time monitoring</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Clock className="w-4 h-4" />
-                    <span>{lot.lastUpdate}</span>
+                    <span>Live</span>
                   </div>
                 </div>
 
@@ -154,10 +167,15 @@ const ParkingView = () => {
         <Card className="p-6">
           <h3 className="text-xl font-bold text-foreground mb-4">Parking Simulation</h3>
           <div className="flex gap-4">
-            <Button variant="outline">Simulate Rush Hour</Button>
-            <Button variant="outline">Simulate Event Traffic</Button>
-            <Button variant="outline">Reset to Normal</Button>
-            <Button variant="secondary">Export Report</Button>
+            <Button variant="outline" onClick={() => handleSimulate('toggle_random')}>
+              Toggle Random Slots
+            </Button>
+            <Button variant="outline" onClick={() => handleSimulate('rush_hour')}>
+              Simulate Rush Hour
+            </Button>
+            <Button variant="secondary" onClick={loadParkingData}>
+              Refresh Data
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
             Use simulation controls to test parking system under different scenarios

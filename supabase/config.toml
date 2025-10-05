@@ -1,1 +1,25 @@
 project_id = "yprokjmpoohheragakdf"
+
+[functions.parking-status]
+verify_jwt = false
+
+[functions.parking-simulate]
+verify_jwt = false
+
+[functions.ndvi-tiles]
+verify_jwt = false
+
+[functions.carbon-grid]
+verify_jwt = false
+
+[functions.eco-route]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.dashboard-impact]
+verify_jwt = false
+
+[functions.simulate-iot]
+verify_jwt = false

@@ -20,28 +20,34 @@ const AIAssistant = () => {
   ]);
   const [input, setInput] = useState("");
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
+    setInput("");
 
-    // Simulated AI response (replace with real API call to /api/ai/chat)
-    setTimeout(() => {
-      const responses = [
-        "Based on current traffic, the eco-route to the library saves 0.8 kg CO₂ compared to the direct route.",
-        "Parking Lot B has 12 available spots. I can reserve one for you!",
-        "Your eco-score increased by 45 points today! Keep up the green commuting! 🎉",
-        "The safest route to your destination uses well-lit paths with 95% CCTV coverage.",
-      ];
+    try {
+      // Call real AI backend with Gemini
+      const { api } = await import('@/lib/api-client');
+      const response = await api.chat(input, {
+        current_page: window.location.pathname,
+        timestamp: new Date().toISOString()
+      });
+
       const aiMessage = {
         role: "assistant",
-        content: responses[Math.floor(Math.random() * responses.length)],
+        content: response.reply || "I apologize, I couldn't process that request.",
       };
       setMessages(prev => [...prev, aiMessage]);
-    }, 800);
-
-    setInput("");
+    } catch (error) {
+      console.error('AI chat error:', error);
+      const errorMessage = {
+        role: "assistant",
+        content: "I'm having trouble connecting right now. Please try again in a moment.",
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   if (!isOpen) {
